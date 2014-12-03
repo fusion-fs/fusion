@@ -1,0 +1,27 @@
+project(unionfs-fuse)
+
+cmake_minimum_required(VERSION 2.0)
+INCLUDE (CheckIncludeFiles)
+
+set(FUSIONFS_VERSION_MAJOR 0)
+set(FUSIONFS_VERSION_MINOR 1)
+set(FUSIONFS_VERSION_PATCH 0)
+set(FUSIONFS_VERSION_STRING ${FUSIONFS_VERSION_MAJOR}.${FUSIONFS_VERSION_MINOR}.${FUSIONFS_VERSION_PATCH})
+set(CMAKE_CXX_FLAGS_DEBUG "-O0 -ggdb -pipe")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -pipe")
+
+# Set a default build type for single-configuration
+# CMake generators if no build type is set.
+IF(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
+	SET(CMAKE_BUILD_TYPE RelWithDebInfo)
+ENDIF(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
+
+# Select flags.
+SET(CMAKE_C_FLAGS "-pipe -W -Wall -DFORTIFY_SOURCE=2")
+SET(CMAKE_C_FLAGS_RELWITHDEBINFO "-O2 -g")
+SET(CMAKE_C_FLAGS_RELEASE "-O2")
+SET(CMAKE_C_FLAGS_DEBUG "-O0 -g -DDEBUG")
+
+add_definitions(-D_FILE_OFFSET_BITS=64)
+
+add_subdirectory(src)

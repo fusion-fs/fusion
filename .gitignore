@@ -26,3 +26,13 @@
 *.exe
 *.out
 *.app
+
+# emacs temp
+*~
+
+# cmake
+CMakeFiles
+CMakeCache.txt
+Makefile
+cmake_install.cmake
+

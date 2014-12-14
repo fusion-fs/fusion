@@ -24,4 +24,5 @@ SET(CMAKE_C_FLAGS_DEBUG "-O0 -g -DDEBUG")
 
 add_definitions(-D_FILE_OFFSET_BITS=64)
 
+add_subdirectory(hiredis)
 add_subdirectory(src)

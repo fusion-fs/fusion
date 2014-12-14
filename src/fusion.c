@@ -1,136 +1,65 @@
 #define FUSE_USE_VERSION 26
 
+
+#include "cppwrapper.hpp"
 #include <fuse.h>
 #include <stdio.h>
-#include <string.h>
-#include <errno.h>
-#include <fcntl.h>
 
-static void *fusionfs_init()
-{
-}
-static void fusionfs_destroy(void *unused __attribute__ ((unused)))
-{
-}
-static int fusionfs_fsync(const char *path, int isdatasync,
-                        struct fuse_file_info *fi)
-{
-    return 0;
-}
-static int fusionfs_release(const char *path, struct fuse_file_info *fi)
-{
-    return 0;
-}
-static int fusionfs_getattr(const char *path, struct stat *stbuf)
-{
-    return 0;
-}
+struct fuse_operations fusionfs_op;
 
-static int fusionfs_access(const char *path, int mask)
-{
-    return 0;
-}
+int main(int argc, char *argv[]) {
+        int i, fuse_stat;
 
-static int fusionfs_readlink(const char *path, char *buf, size_t size)
-{
-    return 0;
-}
-static int fusionfs_readdir(const char *path, void *buf,
-                            fuse_fill_dir_t filler, off_t offset,
-                            struct fuse_file_info *fi)
-{
-    return 0;
-}
-static int fusionfs_mknod(const char *path, mode_t mode, dev_t rdev)
-{
-    return 0;
-}
-static int fusionfs_mkdir(const char *path, mode_t mode)
-{
-    return 0;
-}
-static int fusionfs_unlink(const char *path)
-{
-    return 0;
-}
-static int fusionfs_rmdir(const char *path)
-{
-    return 0;
-}
-static int fusionfs_symlink(const char *from, const char *to)
-{
-    return 0;
-}
-static int fusionfs_rename(const char *from, const char *to)
-{
-    return 0;
-}
-static int fusionfs_link(const char *from, const char *to)
-{
-    return 0;
-}
-static int fusionfs_chmod(const char *path, mode_t mode)
-{
-    return 0;
-}
-static int fusionfs_chown(const char *path, uid_t uid, gid_t gid)
-{
-    return 0;
-}
-static int fusionfs_truncate(const char *path, off_t size)
-{
-    return 0;
-}
-static int fusionfs_utimens(const char *path, const struct timespec ts[2])
-{
-    return 0;
-}
-static int fusionfs_open(const char *path, struct fuse_file_info *fi)
-{
-    return 0;
-}
-static int fusionfs_read(const char *path, char *buf, size_t size,
-                         off_t offset, struct fuse_file_info *fi)
-{
-    return 0;
-}
-static int fusionfs_write(const char *path, const char *buf, size_t size,
-                          off_t offset, struct fuse_file_info *fi)
-{
-    return 0;
-}
-static int fusionfs_statfs(const char *path, struct statvfs *stbuf)
-{
-    return 0;
-}
+        fusionfs_op.getattr = cppwrap_getattr;
+        fusionfs_op.readlink = cppwrap_readlink;
+        fusionfs_op.getdir = NULL;
+        fusionfs_op.mknod = cppwrap_mknod;
+        fusionfs_op.mkdir = cppwrap_mkdir;
+        fusionfs_op.unlink = cppwrap_unlink;
+        fusionfs_op.rmdir = cppwrap_rmdir;
+        fusionfs_op.symlink = cppwrap_symlink;
+        fusionfs_op.rename = cppwrap_rename;
+        fusionfs_op.link = cppwrap_link;
+        fusionfs_op.chmod = cppwrap_chmod;
+        fusionfs_op.chown = cppwrap_chown;
+        fusionfs_op.truncate = cppwrap_truncate;
+        fusionfs_op.utime = cppwrap_utime;
+        fusionfs_op.open = cppwrap_open;
+        fusionfs_op.read = cppwrap_read;
+        fusionfs_op.write = cppwrap_write;
+        fusionfs_op.statfs = cppwrap_statfs;
+        fusionfs_op.flush = cppwrap_flush;
+        fusionfs_op.release = cppwrap_release;
+        fusionfs_op.fsync = cppwrap_fsync;
+        fusionfs_op.setxattr = cppwrap_setxattr;
+        fusionfs_op.getxattr = cppwrap_getxattr;
+        fusionfs_op.listxattr = cppwrap_listxattr;
+        fusionfs_op.removexattr = cppwrap_removexattr;
+        fusionfs_op.opendir = cppwrap_opendir;
+        fusionfs_op.readdir = cppwrap_readdir;
+        fusionfs_op.releasedir = cppwrap_releasedir;
+        fusionfs_op.fsyncdir = cppwrap_fsyncdir;
+        fusionfs_op.init = cppwrap_init;
 
-static struct fuse_operations fusionfs_op = {
-    .getattr = fusionfs_getattr,
-    .access = fusionfs_access,
-    .readlink = fusionfs_readlink,
-    .readdir = fusionfs_readdir,
-    .mknod = fusionfs_mknod,
-    .mkdir = fusionfs_mkdir,
-    .symlink = fusionfs_symlink,
-    .unlink = fusionfs_unlink,
-    .rmdir = fusionfs_rmdir,
-    .rename = fusionfs_rename,
-    .link = fusionfs_link,
-    .chmod = fusionfs_chmod,
-    .chown = fusionfs_chown,
-    .truncate = fusionfs_truncate,
-    .utimens = fusionfs_utimens,
-    .open = fusionfs_open,
-    .read = fusionfs_read,
-    .write = fusionfs_write,
-    .statfs = fusionfs_statfs,
-    .release = fusionfs_release,
-    .fsync = fusionfs_fsync,
-    .destroy = fusionfs_destroy,
-    .init = fusionfs_init,
-};
+        printf("mounting file system...\n");
+        
+        for(i = 1; i < argc && (argv[i][0] == '-'); i++) {
+                if(i == argc) {
+                        return (-1);
+                }
+        }
 
-int main(int argc, char *argv[])
-{
-    return fuse_main(argc, argv, &fusionfs_op, NULL);
+        //realpath(...) returns the canonicalized absolute pathname
+        set_rootdir(realpath(argv[i], NULL));
+
+        for(; i < argc; i++) {
+                argv[i] = argv[i+1];
+        }
+        argc--;
+
+        fuse_stat = fuse_main(argc, argv, &fusionfs_op, NULL);
+
+        printf("fuse_main returned %d\n", fuse_stat);
+
+        return fuse_stat;
 }

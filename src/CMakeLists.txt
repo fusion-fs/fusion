@@ -1,3 +1,4 @@
+set(CPPSRCS cppwrapper.cpp fusionfs.cpp)
 set(CSRCS fusion.c)
 
 add_executable(fusionfs ${CSRCS} ${CPPSRCS})

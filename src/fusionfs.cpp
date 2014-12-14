@@ -237,7 +237,7 @@ int FusionFS::Fsyncdir(const char *path, int datasync, struct fuse_file_info *fi
 }
 
 int FusionFS::Init(struct fuse_conn_info *conn) {
-    return 0;
+    _conn = connection::create();
 }
 
 int FusionFS::Truncate(const char *path, off_t offset, struct fuse_file_info *fileInfo) {

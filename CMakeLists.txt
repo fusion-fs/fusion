@@ -24,5 +24,6 @@ SET(CMAKE_C_FLAGS_DEBUG "-O0 -g -DDEBUG")
 
 add_definitions(-D_FILE_OFFSET_BITS=64)
 
+set(Boost_NO_BOOST_CMAKE ON)
 #add_subdirectory(redis3m)
 add_subdirectory(src)

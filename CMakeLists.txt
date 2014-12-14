@@ -1,6 +1,6 @@
-project(unionfs-fuse)
+project(fusionfs-fuse)
 
-cmake_minimum_required(VERSION 2.0)
+cmake_minimum_required(VERSION 2.8)
 INCLUDE (CheckIncludeFiles)
 
 set(FUSIONFS_VERSION_MAJOR 0)
@@ -24,5 +24,5 @@ SET(CMAKE_C_FLAGS_DEBUG "-O0 -g -DDEBUG")
 
 add_definitions(-D_FILE_OFFSET_BITS=64)
 
-add_subdirectory(hiredis)
+#add_subdirectory(redis3m)
 add_subdirectory(src)

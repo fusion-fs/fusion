@@ -36,3 +36,6 @@ CMakeCache.txt
 Makefile
 cmake_install.cmake
 
+# exe
+src/fusionfs
+

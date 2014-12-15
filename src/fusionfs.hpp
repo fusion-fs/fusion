@@ -20,11 +20,12 @@ static connection::ptr_t _conn;
 
 class FusionFS {
 private: 
-    const char *_root;
-
+    const char *_root; /* namespace identifier */
     static FusionFS *_instance;
     
-    void AbsPath(char dest[PATH_MAX], const char *path);
+    void Path2Inode(const char path[PATH_MAX], int& inode);
+    void GetNewInode(int& inode);
+    void SetInode(const char path[PATH_MAX], int inode);
 
 public:
     static FusionFS *Instance();

@@ -14,8 +14,11 @@
 #include <sys/types.h>
 #include <sys/xattr.h>
 
+using namespace std;
+
 #include <redis3m/redis3m.hpp>
 using namespace redis3m;
+
 static connection::ptr_t _conn;
 
 class FusionFS {
@@ -23,10 +26,13 @@ private:
     const char *_root; /* namespace identifier */
     static FusionFS *_instance;
     
-    void Path2Inode(const char path[PATH_MAX], int& inode);
+    void Path2Inode(const char* path, int& inode);
     void GetNewInode(int& inode);
-    void SetInode(const char path[PATH_MAX], int inode);
-    void SetAttr(const struct stat statbuf);
+    void SetInode(const char* path, int inode);
+    void SetAttr(const struct stat& statbuf);
+    string GetParent(const string& path);
+    string GetFile(const string& path);
+    void AddEntry(const string& parent, const string& file);
 
 public:
     static FusionFS *Instance();
@@ -34,8 +40,11 @@ public:
     FusionFS();
     ~FusionFS();
 
+    // accessor
     void setRootDir(const char *path);
 
+    // FUSE 
+    int Create(const char *path, mode_t mode, struct fuse_file_info *fileInfo);
     int Getattr(const char *path, struct stat *statbuf);
     int Readlink(const char *path, char *link, size_t size);
     int Mknod(const char *path, mode_t mode, dev_t dev);

@@ -37,7 +37,7 @@ Makefile
 cmake_install.cmake
 
 # exe
-src/fusionfs
+src/db/fusionfs
 src/data/dataserver
 
 # protobuf intermediary

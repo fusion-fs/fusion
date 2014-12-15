@@ -6,7 +6,7 @@ FusionFS* FusionFS::_instance = NULL;
 
 FusionFS* FusionFS::Instance() {
     if(_instance == NULL) {
-	_instance = new FusionFS();
+        _instance = new FusionFS();
     }
     return _instance;
 }
@@ -50,8 +50,53 @@ void FusionFS::setRootDir(const char *path) {
     _root = path;
 }
 
+void FusionFS::SetAttr(const struct stat statbuf)
+{
+	_conn->run(command("HMSET") << _root << " ATTR_N:INODE:" << statbuf.st_ino << 
+               " GID " << statbuf.st_gid << 
+               " UID " << statbuf.st_uid << 
+               " LINK " << statbuf.st_nlink << 
+               " MODE " << statbuf.st_mode);
+
+    if (statbuf.st_atime && statbuf.st_mtime && statbuf.st_ctime) {
+        _conn->run(command("HMSET") << _root << " ATTR_V:INODE:" << statbuf.st_ino <<     
+                   " ATIME " << statbuf.st_atime << 
+                   " MTIME " << statbuf.st_mtime << 
+                   " CTIME " << statbuf.st_ctime);
+    }
+    if (statbuf.st_mode & S_IFDIR) {
+        _conn->run(command("HMSET") << _root << " ATTR_V:INODE:" << statbuf.st_ino <<     
+                   " SIZE " << statbuf.st_size);
+    }
+}
 int FusionFS::Getattr(const char *path, struct stat *statbuf) {
     printf("getattr(%s)\n", path);
+    memset(statbuf, 0, sizeof(struct stat));
+
+	int inode;
+	Path2Inode(path, inode);
+    statbuf->st_ino = inode;
+
+	// first non-volatile parts
+	reply r = _conn->run(command("HMGET") << _root << " ATTR_N:INODE:" << inode << 
+                         " GID UID LINK MODE");
+	std::vector<reply> re = r.elements();
+
+	statbuf->st_gid   = re[0].integer();
+    statbuf->st_uid   = re[1].integer();
+    statbuf->st_nlink = re[2].integer();
+    statbuf->st_mode  = re[3].integer();
+
+    // then volatile parts    
+    r = _conn->run(command("HMGET") << _root << " ATTR_V:INODE:" << inode << 
+               "ATIME CTIME MTIME SIZE");
+    statbuf->st_atime  = re[0].integer();
+    statbuf->st_ctime  = re[1].integer();
+    statbuf->st_mtime  = re[2].integer();
+    if (statbuf->st_mode & S_IFDIR) {
+        statbuf->st_size  = re[3].integer();
+    }
+    //FIXME: blocksize, blocks, rdev, dev
     return 0;
 }
 
@@ -154,7 +199,7 @@ int FusionFS::Fsync(const char *path, int datasync, struct fuse_file_info *fi) {
 
 int FusionFS::Setxattr(const char *path, const char *name, const char *value, size_t size, int flags) {
     printf("setxattr(path=%s, name=%s, value=%s, size=%d, flags=%d\n",
-	   path, name, value, (int)size, flags);
+           path, name, value, (int)size, flags);
     return 0;
 }
 

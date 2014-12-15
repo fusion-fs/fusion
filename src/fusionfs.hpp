@@ -26,6 +26,7 @@ private:
     void Path2Inode(const char path[PATH_MAX], int& inode);
     void GetNewInode(int& inode);
     void SetInode(const char path[PATH_MAX], int inode);
+    void SetAttr(const struct stat statbuf);
 
 public:
     static FusionFS *Instance();

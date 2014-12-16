@@ -43,13 +43,13 @@ void FusionFS::GetNewInode(int& inode)
 	inode = (int)r.integer();
 }
 
-void FusionFS::Path2Inode(const char* path, int& inode)
+int FusionFS::Path2Inode(const char* path)
 {
 	string p = _root;
 	p += ":INODE:";
 	p += path;
     reply r = _conn->run(command("GET") << p);
-    inode = (int)r.integer();
+    return atoi(r.str().c_str());
 }
 
 void FusionFS::SetInode(const char* path, int inode)
@@ -75,21 +75,22 @@ void FusionFS::setRootDir(const char *path) {
 
 void FusionFS::SetAttr(const struct stat& statbuf)
 {
-	_conn->run(command("HMSET") << _root << "ATTR_N:INODE:" + lexical_cast<string>(statbuf.st_ino) << 
+    string p = _root;
+	_conn->run(command("HMSET") << p +  ":ATTR_N:INODE:" + lexical_cast<string>(statbuf.st_ino) << 
                "GID" << statbuf.st_gid << 
                "UID" << statbuf.st_uid << 
                "LINK" << statbuf.st_nlink << 
                "MODE" << statbuf.st_mode);
 
     if (statbuf.st_atime && statbuf.st_mtime && statbuf.st_ctime) {
-        _conn->run(command("HMSET") << _root << "ATTR_V:INODE:" + lexical_cast<string>(statbuf.st_ino) <<     
+        _conn->run(command("HMSET") << p +  ":ATTR_V:INODE:" + lexical_cast<string>(statbuf.st_ino) <<     
                    "ATIME" << statbuf.st_atime << 
                    "MTIME" << statbuf.st_mtime << 
                    "CTIME" << statbuf.st_ctime);
     }
-    if (statbuf.st_mode & S_IFDIR) {
-        _conn->run(command("HMSET") << _root << "ATTR_V:INODE:" + lexical_cast<string>(statbuf.st_ino) <<     
-                   "SIZE " << statbuf.st_size);
+    if (statbuf.st_mode & S_IFREG) {
+        _conn->run(command("HMSET") << p +  ":ATTR_V:INODE:" + lexical_cast<string>(statbuf.st_ino) <<     
+                   "SIZE" << statbuf.st_size);
     }
 }
 int FusionFS::Getattr(const char *path, struct stat *statbuf) {
@@ -109,32 +110,33 @@ int FusionFS::Getattr(const char *path, struct stat *statbuf) {
     }
 
 
-	int inode;
-	Path2Inode(path, inode);
+	int inode = Path2Inode(path);
     if (!inode) {
         return -ENOENT;
     }
 
-    statbuf->st_ino = inode;
+    //statbuf->st_ino = inode;
 
 	// first non-volatile parts
-	reply r = _conn->run(command("HMGET") << _root << "ATTR_N:INODE:" + lexical_cast<string>(inode) << 
-                         "GID UID LINK MODE");
+    string p = _root;
+	reply r = _conn->run(command("HMGET") << p +  ":ATTR_N:INODE:" + lexical_cast<string>(inode) << 
+                         "GID" <<  "UID" << "LINK" << "MODE");
 	vector<reply> re = r.elements();
 
-	statbuf->st_gid   = re[0].integer();
-    statbuf->st_uid   = re[1].integer();
-    statbuf->st_nlink = re[2].integer();
-    statbuf->st_mode  = re[3].integer();
-
+	statbuf->st_gid   = atoi(re[0].str().c_str());
+    statbuf->st_uid   = atoi(re[1].str().c_str());
+    statbuf->st_nlink = atoi(re[2].str().c_str());
+    statbuf->st_mode  = atoi(re[3].str().c_str());
+    
     // then volatile parts    
-    r = _conn->run(command("HMGET") << _root << "ATTR_V:INODE:" + lexical_cast<string>(inode) << 
-               "ATIME CTIME MTIME SIZE");
-    statbuf->st_atime  = re[0].integer();
-    statbuf->st_ctime  = re[1].integer();
-    statbuf->st_mtime  = re[2].integer();
-    if (statbuf->st_mode & S_IFDIR) {
-        statbuf->st_size  = re[3].integer();
+    r = _conn->run(command("HMGET") << p +  ":ATTR_V:INODE:" + lexical_cast<string>(inode) << 
+                   "ATIME" << "CTIME" << "MTIME" << "SIZE");
+    re = r.elements();
+    statbuf->st_atime  = atoi(re[0].str().c_str());
+    statbuf->st_ctime  = atoi(re[1].str().c_str());
+    statbuf->st_mtime  = atoi(re[2].str().c_str());
+    if (statbuf->st_mode & S_IFREG) {
+        statbuf->st_size  = atoi(re[3].str().c_str());
     }
     //FIXME: blocksize, blocks, rdev, dev
     return 0;
@@ -300,8 +302,7 @@ int FusionFS::Create(const char *path, mode_t mode, struct fuse_file_info *fileI
         return EINVAL;
     }
     fprintf(stderr,"create(path=%s)\n", path);    
-    int inode;
-    Path2Inode(path, inode);
+    int inode = Path2Inode(path);
     if (!inode) {
         GetNewInode(inode);
         SetInode(path, inode);
@@ -311,7 +312,7 @@ int FusionFS::Create(const char *path, mode_t mode, struct fuse_file_info *fileI
         memset(&statbuf, 0, sizeof(struct stat));
         statbuf.st_ino = inode;
         statbuf.st_mtime = statbuf.st_ctime = statbuf.st_atime = time(NULL);
-        statbuf.st_mode = mode;
+        statbuf.st_mode = mode | S_IFREG;
         statbuf.st_uid = fuse_get_context()->uid;
         statbuf.st_gid = fuse_get_context()->gid;
         statbuf.st_nlink = 1;

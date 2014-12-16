@@ -26,7 +26,7 @@ private:
     const char *_root; /* namespace identifier */
     static FusionFS *_instance;
     
-    void Path2Inode(const char* path, int& inode);
+    int Path2Inode(const char* path);
     void GetNewInode(int& inode);
     void SetInode(const char* path, int inode);
     void SetAttr(const struct stat& statbuf);

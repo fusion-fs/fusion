@@ -94,6 +94,10 @@ int cppwrap_releasedir(const char *path, struct fuse_file_info *fileInfo) {
 int cppwrap_fsyncdir(const char *path, int datasync, struct fuse_file_info *fileInfo) {
     return FusionFS::Instance()->Fsyncdir(path, datasync, fileInfo);
 }
-int cppwrap_init(struct fuse_conn_info *conn) {
+int cppwrap_access(const char *path, int mode)
+{
+    return FusionFS::Instance()->Access(path, mode);
+}
+void* cppwrap_init(struct fuse_conn_info *conn) {
     return FusionFS::Instance()->Init(conn);
 }

@@ -50,8 +50,8 @@ extern "C" {
     int cppwrap_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fileInfo);
     int cppwrap_releasedir(const char *path, struct fuse_file_info *fileInfo);
     int cppwrap_fsyncdir(const char *path, int datasync, struct fuse_file_info *fileInfo);
-    int cppwrap_init(struct fuse_conn_info *conn);
-
+    void* cppwrap_init(struct fuse_conn_info *conn);
+    int cppwrap_access(const char *path, int mode);
 #ifdef __cplusplus
 }
 #endif

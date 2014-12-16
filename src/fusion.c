@@ -9,10 +9,11 @@ struct fuse_operations fusionfs_op;
 
 int main(int argc, char *argv[]) {
     int i, fuse_stat;
+
     fusionfs_op.create = cppwrap_create;
     fusionfs_op.getattr = cppwrap_getattr;
     fusionfs_op.readlink = cppwrap_readlink;
-    fusionfs_op.getdir = NULL;
+    //fusionfs_op.getdir = NULL;
     fusionfs_op.mknod = cppwrap_mknod;
     fusionfs_op.mkdir = cppwrap_mkdir;
     fusionfs_op.unlink = cppwrap_unlink;
@@ -27,7 +28,7 @@ int main(int argc, char *argv[]) {
     fusionfs_op.open = cppwrap_open;
     fusionfs_op.read = cppwrap_read;
     fusionfs_op.write = cppwrap_write;
-    fusionfs_op.statfs = cppwrap_statfs;
+    //fusionfs_op.statfs = cppwrap_statfs;
     fusionfs_op.flush = cppwrap_flush;
     fusionfs_op.release = cppwrap_release;
     fusionfs_op.fsync = cppwrap_fsync;
@@ -39,6 +40,7 @@ int main(int argc, char *argv[]) {
     fusionfs_op.readdir = cppwrap_readdir;
     fusionfs_op.releasedir = cppwrap_releasedir;
     fusionfs_op.fsyncdir = cppwrap_fsyncdir;
+    fusionfs_op.access = cppwrap_access;
     fusionfs_op.init = cppwrap_init;
 
     printf("mounting file system...\n");
@@ -59,7 +61,7 @@ int main(int argc, char *argv[]) {
 
     fuse_stat = fuse_main(argc, argv, &fusionfs_op, NULL);
 
-    printf("fuse_main returned %d\n", fuse_stat);
+    fprintf(stderr, "fuse_main returned %d\n", fuse_stat);
 
     return fuse_stat;
 }

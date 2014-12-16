@@ -68,8 +68,8 @@ void FusionFS::AddEntry(const string& parent, const string& file)
     _conn->run(command("LPUSH") << p << file);
 }
 
-void FusionFS::setRootDir(const char *path) {
-    fprintf(stderr,"setting FS root to: %s\n", path);
+void FusionFS::setNamespace(const char *path) {
+    fprintf(stderr,"setting namespace to: %s\n", path);
     _root = path;
 }
 

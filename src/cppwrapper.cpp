@@ -1,8 +1,8 @@
 #include "cppwrapper.hpp"
 #include "fusionfs.hpp"
 
-void set_rootdir(const char *path) {
-    FusionFS::Instance()->setRootDir(path);
+void set_Namespace(const char *path) {
+    FusionFS::Instance()->setNamespace(path);
 }
 
 int cppwrap_create(const char *path, mode_t mode, struct fuse_file_info *fileInfo){

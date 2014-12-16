@@ -41,7 +41,7 @@ public:
     ~FusionFS();
 
     // accessor
-    void setRootDir(const char *path);
+    void setNamespace(const char *path);
 
     // FUSE 
     int Create(const char *path, mode_t mode, struct fuse_file_info *fileInfo);

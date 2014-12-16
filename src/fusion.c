@@ -4,16 +4,20 @@
 #include "cppwrapper.hpp"
 #include <fuse.h>
 #include <stdio.h>
+#include <getopt.h>
+#include <stdarg.h>
 
 struct fuse_operations fusionfs_op;
-
+#define NS "test"
 int main(int argc, char *argv[]) {
-    int i, fuse_stat;
+    int fuse_stat;
+    char *ns = NULL;
+    char *mount = "/tmp/test";
 
     fusionfs_op.create = cppwrap_create;
     fusionfs_op.getattr = cppwrap_getattr;
     fusionfs_op.readlink = cppwrap_readlink;
-    //fusionfs_op.getdir = NULL;
+    fusionfs_op.getdir = NULL;
     fusionfs_op.mknod = cppwrap_mknod;
     fusionfs_op.mkdir = cppwrap_mkdir;
     fusionfs_op.unlink = cppwrap_unlink;
@@ -28,7 +32,7 @@ int main(int argc, char *argv[]) {
     fusionfs_op.open = cppwrap_open;
     fusionfs_op.read = cppwrap_read;
     fusionfs_op.write = cppwrap_write;
-    //fusionfs_op.statfs = cppwrap_statfs;
+    fusionfs_op.statfs = cppwrap_statfs;
     fusionfs_op.flush = cppwrap_flush;
     fusionfs_op.release = cppwrap_release;
     fusionfs_op.fsync = cppwrap_fsync;
@@ -43,25 +47,60 @@ int main(int argc, char *argv[]) {
     fusionfs_op.access = cppwrap_access;
     fusionfs_op.init = cppwrap_init;
 
-    printf("mounting file system...\n");
-        
-    for(i = 1; i < argc && (argv[i][0] == '-'); i++) {
-        if(i == argc) {
-            return (-1);
+    int c;
+    while (1)
+    {
+        static struct option long_options[] = {
+            {"debug", no_argument, 0, 'd'},
+            {"help", no_argument, 0, 'h'},
+            {"mount", required_argument, 0, 'm'},
+            {"namespace", required_argument, 0, 'n'},
+            {"version", no_argument, 0, 'v'},
+            {0, 0, 0, 0}
+        };
+        int option_index = 0;
+
+        c = getopt_long(argc, argv, "m:n:dv", long_options,
+                        &option_index);
+
+        if (c == -1)
+            break;
+
+        switch (c)
+        {
+        case 'v':
+        case 'h':
+            printf("usage: %s mountpoint\n", argv[0]);
+            break;
+        case 'n':
+            ns = strdup(optarg);
+            break;
+        case 'm':
+            mount = strdup(optarg);
+            break;
+        default:
+            printf("usage: %s mountpoint\n", argv[0]);
+            exit(1);
+
         }
     }
+    printf("mounting file system...\n");
+            
+    set_Namespace(ns?ns:NS);
+    
+    char *fuse_argv[] = {
+        "fuse-fusionfs", mount,
+        "-o", "allow_other",
+        "-o", "nonempty",
+        "-f",
+        "-o", "debug",
+        NULL
+    };
+    int fuse_argc = 9;
 
-    //realpath(...) returns the canonicalized absolute pathname
-    set_rootdir(realpath(argv[i], NULL));
-
-    for(; i < argc; i++) {
-        argv[i] = argv[i+1];
-    }
-    argc--;
-
-    fuse_stat = fuse_main(argc, argv, &fusionfs_op, NULL);
-
+    fuse_stat = fuse_main(fuse_argc, fuse_argv, &fusionfs_op, NULL);
     fprintf(stderr, "fuse_main returned %d\n", fuse_stat);
-
+    free(ns);
+    //free(mount);
     return fuse_stat;
 }

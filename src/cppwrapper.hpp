@@ -19,7 +19,7 @@
 extern "C" {
 #endif
 
-    void set_rootdir(const char *path);
+    void set_Namespace(const char *path);
 
     int cppwrap_create(const char *path, mode_t mode, struct fuse_file_info *fileInfo);
     int cppwrap_getattr(const char *path, struct stat *statbuf);

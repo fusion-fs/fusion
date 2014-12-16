@@ -1,4 +1,7 @@
 #include "fusionfs.hpp"
+#include <boost/lexical_cast.hpp>
+
+using namespace boost;
 
 FusionFS* FusionFS::_instance = NULL;
 
@@ -21,6 +24,8 @@ FusionFS::~FusionFS() {
 string FusionFS::GetParent(const string& path)
 {
     unsigned found = path.find_last_of("/\\");
+    if (!found)
+        return "/";
     return (path.substr(0,found));
 }
 
@@ -57,7 +62,10 @@ void FusionFS::SetInode(const char* path, int inode)
 
 void FusionFS::AddEntry(const string& parent, const string& file)
 {
-    _conn->run(command("SADD") << parent << file);
+    string p = _root;
+    p += ":DIR:";
+    p += parent;
+    _conn->run(command("LPUSH") << p << file);
 }
 
 void FusionFS::setRootDir(const char *path) {
@@ -67,21 +75,21 @@ void FusionFS::setRootDir(const char *path) {
 
 void FusionFS::SetAttr(const struct stat& statbuf)
 {
-	_conn->run(command("HMSET") << _root << " ATTR_N:INODE:" + statbuf.st_ino << 
-               " GID " << statbuf.st_gid << 
-               " UID " << statbuf.st_uid << 
-               " LINK " << statbuf.st_nlink << 
-               " MODE " << statbuf.st_mode);
+	_conn->run(command("HMSET") << _root << "ATTR_N:INODE:" + lexical_cast<string>(statbuf.st_ino) << 
+               "GID" << statbuf.st_gid << 
+               "UID" << statbuf.st_uid << 
+               "LINK" << statbuf.st_nlink << 
+               "MODE" << statbuf.st_mode);
 
     if (statbuf.st_atime && statbuf.st_mtime && statbuf.st_ctime) {
-        _conn->run(command("HMSET") << _root << " ATTR_V:INODE:" + statbuf.st_ino <<     
-                   " ATIME " << statbuf.st_atime << 
-                   " MTIME " << statbuf.st_mtime << 
-                   " CTIME " << statbuf.st_ctime);
+        _conn->run(command("HMSET") << _root << "ATTR_V:INODE:" + lexical_cast<string>(statbuf.st_ino) <<     
+                   "ATIME" << statbuf.st_atime << 
+                   "MTIME" << statbuf.st_mtime << 
+                   "CTIME" << statbuf.st_ctime);
     }
     if (statbuf.st_mode & S_IFDIR) {
-        _conn->run(command("HMSET") << _root << " ATTR_V:INODE:" + statbuf.st_ino <<     
-                   " SIZE " << statbuf.st_size);
+        _conn->run(command("HMSET") << _root << "ATTR_V:INODE:" + lexical_cast<string>(statbuf.st_ino) <<     
+                   "SIZE " << statbuf.st_size);
     }
 }
 int FusionFS::Getattr(const char *path, struct stat *statbuf) {
@@ -110,8 +118,8 @@ int FusionFS::Getattr(const char *path, struct stat *statbuf) {
     statbuf->st_ino = inode;
 
 	// first non-volatile parts
-	reply r = _conn->run(command("HMGET") << _root << " ATTR_N:INODE:" + inode << 
-                         " GID UID LINK MODE");
+	reply r = _conn->run(command("HMGET") << _root << "ATTR_N:INODE:" + lexical_cast<string>(inode) << 
+                         "GID UID LINK MODE");
 	vector<reply> re = r.elements();
 
 	statbuf->st_gid   = re[0].integer();
@@ -120,7 +128,7 @@ int FusionFS::Getattr(const char *path, struct stat *statbuf) {
     statbuf->st_mode  = re[3].integer();
 
     // then volatile parts    
-    r = _conn->run(command("HMGET") << _root << " ATTR_V:INODE:" + inode << 
+    r = _conn->run(command("HMGET") << _root << "ATTR_V:INODE:" + lexical_cast<string>(inode) << 
                "ATIME CTIME MTIME SIZE");
     statbuf->st_atime  = re[0].integer();
     statbuf->st_ctime  = re[1].integer();
@@ -263,6 +271,18 @@ int FusionFS::Opendir(const char *path, struct fuse_file_info *fileInfo) {
 
 int FusionFS::Readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fileInfo) {
     fprintf(stderr,"readdir(path=%s, offset=%d)\n", path, (int)offset);
+    filler(buf, ".", NULL, 0);
+    filler(buf, "..", NULL, 0);
+    string p = _root;
+    p += ":DIR:";
+    p += path;
+
+    reply r = _conn->run(command("LRANGE") << p << lexical_cast<string>(offset) << lexical_cast<string>(256));
+	vector<reply> re = r.elements();
+    for (std::vector<reply>::iterator it = re.begin();
+         it != re.end(); it ++) {
+        filler(buf, strdup(it->str().c_str()), NULL, 0);
+    }
     return 0;
 }
 
@@ -279,30 +299,34 @@ int FusionFS::Create(const char *path, mode_t mode, struct fuse_file_info *fileI
     if (!path) {
         return EINVAL;
     }
-
+    fprintf(stderr,"create(path=%s)\n", path);    
     int inode;
-    GetNewInode(inode);
-    SetInode(path, inode);
+    Path2Inode(path, inode);
+    if (!inode) {
+        GetNewInode(inode);
+        SetInode(path, inode);
 
-    // create dentry
-    struct stat statbuf;
-    memset(&statbuf, 0, sizeof(struct stat));
-    statbuf.st_ino = inode;
-    statbuf.st_mtime = statbuf.st_ctime = statbuf.st_atime = time(NULL);
-    statbuf.st_mode = mode;
-    statbuf.st_uid = fuse_get_context()->uid;
-    statbuf.st_gid = fuse_get_context()->gid;
-    statbuf.st_nlink = 1;
-    SetAttr(statbuf);
+        // create dentry
+        struct stat statbuf;
+        memset(&statbuf, 0, sizeof(struct stat));
+        statbuf.st_ino = inode;
+        statbuf.st_mtime = statbuf.st_ctime = statbuf.st_atime = time(NULL);
+        statbuf.st_mode = mode;
+        statbuf.st_uid = fuse_get_context()->uid;
+        statbuf.st_gid = fuse_get_context()->gid;
+        statbuf.st_nlink = 1;
+        SetAttr(statbuf);
 
-    // add to parent
-    string parent = GetParent(path);
-    string file = GetFile(path);
-    AddEntry(parent, file);
+        // add to parent
+        string parent = GetParent(path);
+        string file = GetFile(path);
+        AddEntry(parent, file);
+    }
 }
 
 int FusionFS::Access(const char *path, int mode)
 {
+    fprintf(stderr,"access(path=%s)\n", path);    
     return 0;
 }
 

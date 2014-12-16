@@ -1,5 +1,5 @@
 #include "cppwrapper.hpp"
-#include "fusionfs.hpp"
+#include "db/fusionfs.hpp"
 
 void set_Namespace(const char *path) {
     FusionFS::Instance()->setNamespace(path);

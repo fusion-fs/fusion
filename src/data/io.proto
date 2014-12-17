@@ -1,0 +1,47 @@
+package io;
+
+
+// The request has a type and then the relevant optional field is 
+// filled.
+//
+message Request {
+    enum RequestType {
+        READ  = 1;
+        WRITE = 2;
+        TRIM  = 3;
+    }
+
+    required RequestType type = 1;
+
+    message IORead {
+        required string key = 1;
+        required uint64 offset = 2;
+        required uint64 len = 3;
+    }
+    optional IORead io_read = 21;
+
+    message IOWrite {
+        required string key = 1;
+        required uint64 offset = 2;
+        required uint64 len = 3;
+        required bytes data = 4;
+    }
+
+    optional IOWrite io_write = 22;
+
+    message IOTrim {
+        
+    }
+    optional IOTrim io_trim = 23;
+}
+
+
+// The response is a simple string
+// For GET_VALUE, the value is returned (or empty string if no such value)
+// For SET_VALUE, the value is returned
+// For COUNT_VALUES, the count is returned as a string
+//
+message Response {
+    required string value = 1;
+}
+

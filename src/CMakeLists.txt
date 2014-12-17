@@ -5,3 +5,5 @@ add_executable(fusionfs ${CSRCS} ${CPPSRCS})
 target_link_libraries(fusionfs fuse pthread rt redis3m)
 
 INSTALL(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/fusionfs DESTINATION bin)
+
+add_subdirectory(data)

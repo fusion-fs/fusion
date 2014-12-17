@@ -3,6 +3,8 @@ project(fusionfs-fuse)
 cmake_minimum_required(VERSION 2.8)
 INCLUDE (CheckIncludeFiles)
 
+find_package(Protobuf REQUIRED)
+
 set(FUSIONFS_VERSION_MAJOR 0)
 set(FUSIONFS_VERSION_MINOR 1)
 set(FUSIONFS_VERSION_PATCH 0)

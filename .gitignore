@@ -38,4 +38,8 @@ cmake_install.cmake
 
 # exe
 src/fusionfs
+src/data/dataserver
 
+# protobuf intermediary
+*.pb.h
+*.pb.cc

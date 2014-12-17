@@ -142,7 +142,7 @@ private:
                 break;
         }
         ResponsePointer resp(new io::Response);
-        resp->set_value(value);
+        //resp->set_value(value);
         return resp;
     }
 };

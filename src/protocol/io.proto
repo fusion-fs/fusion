@@ -9,6 +9,9 @@ message Request {
         READ  = 1;
         WRITE = 2;
         TRIM  = 3;
+        JOIN  = 4;
+        LEAVE = 5;
+        PING  = 6;
     }
 
     required RequestType type = 1;
@@ -42,6 +45,27 @@ message Request {
 // For COUNT_VALUES, the count is returned as a string
 //
 message Response {
-    required string value = 1;
+    enum ResponseType {
+        READ  = 1;
+        WRITE = 2;
+        TRIM  = 3;
+        JOIN  = 4;
+        LEAVE = 5;
+        PING  = 6;
+    }
+
+    message IOReadRes {
+        required uint32 status = 1;
+        optional uint64 len = 2;
+        optional bytes data = 3;
+    }
+    optional IOReadRes io_read_res = 31;
+
+    message IOWriteRes {
+        required uint32 status = 1;
+        optional uint64 len = 2;
+    }
+
+    optional IOWriteRes io_write_res = 32;
 }
 

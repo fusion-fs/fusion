@@ -1,0 +1,3 @@
+include_directories(${CMAKE_CURRENT_BINARY_DIR})
+PROTOBUF_GENERATE_CPP(PROTO_SRCS PROTO_HDRS io.proto)
+add_library(io ${PROTO_SRCS})

@@ -1,5 +1,3 @@
-#ifdef __cplusplus
-extern "C" {
 enum xio_states {
     XIO_INIT,
     XIO_ESTABLISHED,
@@ -15,7 +13,8 @@ struct per_session_data_xio {
     enum xio_states state;
 };
 
-extern int start_rpc_server(ulong port);
+#ifdef __cplusplus
+extern "C" {
 extern int write_to_client(int fd, unsigned char *data, ulong len);
 extern int read_from_client(int fd, unsigned char *req, ulong req_len, 
                          unsigned char *resp, ulong resp_len);

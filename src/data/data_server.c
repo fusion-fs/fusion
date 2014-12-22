@@ -64,7 +64,7 @@ static struct libwebsocket_protocols protocols[] = {
     {
         "xio-protocol",
         xio_protocol_callback,
-        4096,
+        sizeof(struct per_session_data_xio),
     },
     { NULL, NULL, 0} /* terminator */
 };

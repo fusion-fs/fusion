@@ -8,6 +8,20 @@
 #include <set>
 #ifdef __cplusplus
 extern "C" {
+    enum xio_states {
+        XIO_INIT,
+        XIO_ESTABLISHED,
+        XIO_SEND_COMMAND,
+        XIO_HANDLE_MESSAGE,
+        XIO_PAYLOAD_SUM,
+    };
+
+    struct per_session_data_xio {
+        int packets_left;
+        int total_message;
+        unsigned long sum;
+        enum xio_states state;
+    };
 
     static struct libwebsocket_context *context;
     using namespace std;
@@ -93,19 +107,21 @@ extern "C" {
                           enum libwebsocket_callback_reasons reason,
                           void *user, void *in, size_t len)
     {
-        char client_name[128];
-        char client_ip[128];
- 
+        struct per_session_data_xio *xio = (struct per_session_data_xio *)user; 
+
         switch (reason) {
 
         case LWS_CALLBACK_ESTABLISHED:
             lwsl_notice("established\n");
+            xio->state = XIO_ESTABLISHED;
             add_client(wsi);
             break;
+
 
         case LWS_CALLBACK_SERVER_WRITEABLE:
             lwsl_notice("writable\n");
             break;
+
         case LWS_CALLBACK_CLOSED:
             fprintf(stderr, "LWS_CALLBACK_CLOSED\n");
             remove_client(wsi);
@@ -113,15 +129,19 @@ extern "C" {
 
         case LWS_CALLBACK_RECEIVE:
         {
-            fprintf(stderr, "receive:");
+            fprintf(stderr, "receive:\n");
             fprintf(stderr, "%s\n", (char *)in);
+            switch (xio->state) {
+            case XIO_ESTABLISHED:
             {
                 unsigned char buffer[4096];
                 unsigned char *p = buffer;
                 p += sprintf((char *)p,
                              "Status: OK\x0d\x0a");
-
+                
                 int n = libwebsocket_write(wsi, buffer, p - buffer, LWS_WRITE_BINARY);
+            }
+            break;
             }
 
         }

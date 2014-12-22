@@ -1,11 +1,11 @@
 #define FUSE_USE_VERSION 26
 
-
-#include "cppwrapper.hpp"
 #include <fuse.h>
 #include <stdio.h>
 #include <getopt.h>
 #include <stdarg.h>
+#include "rpc.h"
+#include "cppwrapper.hpp"
 
 struct fuse_operations fusionfs_op;
 #define NS "test"
@@ -48,6 +48,7 @@ int main(int argc, char *argv[]) {
     fusionfs_op.init = cppwrap_init;
 
     int c;
+    ulong port = 9999;
     while (1)
     {
         static struct option long_options[] = {
@@ -55,12 +56,13 @@ int main(int argc, char *argv[]) {
             {"help", no_argument, 0, 'h'},
             {"mount", required_argument, 0, 'm'},
             {"namespace", required_argument, 0, 'n'},
+            {"port", required_argument, 0, 'p'},
             {"version", no_argument, 0, 'v'},
             {0, 0, 0, 0}
         };
         int option_index = 0;
 
-        c = getopt_long(argc, argv, "m:n:dv", long_options,
+        c = getopt_long(argc, argv, "m:n:p:dv", long_options,
                         &option_index);
 
         if (c == -1)
@@ -78,6 +80,9 @@ int main(int argc, char *argv[]) {
         case 'm':
             mount = strdup(optarg);
             break;
+        case 'p':
+            port = atoi(optarg);
+            break;
         default:
             printf("usage: %s mountpoint\n", argv[0]);
             exit(1);
@@ -92,15 +97,18 @@ int main(int argc, char *argv[]) {
         "fuse-fusionfs", mount,
         "-o", "allow_other",
         "-o", "nonempty",
-        "-f",
-        "-o", "debug",
         NULL
     };
-    int fuse_argc = 9;
+    int fuse_argc = 6;
 
     fuse_stat = fuse_main(fuse_argc, fuse_argv, &fusionfs_op, NULL);
     fprintf(stderr, "fuse_main returned %d\n", fuse_stat);
+    int ret = start_rpc_server(port);
+    if (ret){
+        fprintf(stderr, "rpc server returned %d\n", ret);
+    }
+
     free(ns);
     //free(mount);
-    return fuse_stat;
+    return fuse_stat | ret;
 }

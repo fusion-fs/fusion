@@ -1,1 +1,1 @@
-void start_server(ulong port);
+extern int start_rpc_server(ulong port);

@@ -13,27 +13,27 @@ int force_exit = 0;
 
 static int
 xio_protocol_callback(struct libwebsocket_context *context,
-		     struct libwebsocket *wsi,
-		     enum libwebsocket_callback_reasons reason,
-	             void *user, void *in, size_t len)
+                      struct libwebsocket *wsi,
+                      enum libwebsocket_callback_reasons reason,
+                      void *user, void *in, size_t len)
 {
     switch (reason) {
 
     case LWS_CALLBACK_ESTABLISHED:
-	printf("New Connection\n");
-	break;
+        printf("New Connection\n");
+        break;
 
     case LWS_CALLBACK_SERVER_WRITEABLE:
-	break;
+        break;
 
     case LWS_CALLBACK_RECEIVE:
-	break;
+        break;
 
     case LWS_CALLBACK_FILTER_PROTOCOL_CONNECTION:
-	break;
+        break;
 
     default:
-	break;
+        break;
     }
 
     return 0;
@@ -41,9 +41,9 @@ xio_protocol_callback(struct libwebsocket_context *context,
 
 static struct libwebsocket_protocols protocols[] = {
     {
-	"xio-protocol",
-	xio_protocol_callback,
-	128,
+        "xio-protocol",
+        xio_protocol_callback,
+        128,
     },
     { NULL, NULL, 0} /* terminator */
 };
@@ -53,7 +53,7 @@ static void sighandler(int sig)
     force_exit = 1;
 }
 
-int start_server(ulong port)
+int start_rpc_server(ulong port)
 {
     int n = 0;
     struct libwebsocket_context *context;
@@ -89,14 +89,14 @@ int start_server(ulong port)
 
     context = libwebsocket_create_context(&info);
     if (context == NULL) {
-	lwsl_err("libwebsocket init failed\n");
-	return -1;
+        lwsl_err("libwebsocket init failed\n");
+        return -1;
     }
 
     n = 0;
     while (n >= 0 && !force_exit) {
 	
-	n = libwebsocket_service(context, 50);
+        n = libwebsocket_service(context, 50);
 		
     };
 

@@ -67,36 +67,22 @@ xio_protocol_callback(struct libwebsocket_context *context,
 
     case LWS_CALLBACK_ESTABLISHED:
         lwsl_notice("established\n");
-        libwebsocket_callback_on_writable_all_protocol(&protocols[1]);
-        break;
-	case LWS_CALLBACK_CLIENT_ESTABLISHED:
-        lwsl_notice("client established\n");
-        break;
-	case LWS_CALLBACK_CLIENT_WRITEABLE:
-        lwsl_notice("client writable\n");
         break;
 
     case LWS_CALLBACK_SERVER_WRITEABLE:
         lwsl_notice("writable\n");
-        {
-            unsigned char buffer[4096];
-            unsigned char *p = buffer;
-
-            p += sprintf((char *)p,
-                         "COMMAND:read\n"
-                         "FILE:abc\n"
-                         "START:0\n",
-                         "SIZE:100\n");
-
-            int n = libwebsocket_write(wsi, buffer, p - buffer, LWS_WRITE_TEXT);
-            fprintf(stderr, "wrote %d\n", n);
-        }
-
         break;
 	case LWS_CALLBACK_CLIENT_RECEIVE:
     case LWS_CALLBACK_RECEIVE:
-        lwsl_notice("receive\n");
-        break;
+    {
+        char peer_name[128], ip[30];
+        libwebsockets_get_peer_addresses(context, wsi,
+                                         libwebsocket_get_socket_fd(wsi),
+                                         peer_name, sizeof peer_name, ip, sizeof ip);
+        fprintf(stderr, "receive: %s %s\n", peer_name, ip);
+		fprintf(stderr, "%s\n", (char *)in);
+    }
+    break;
 	case LWS_CALLBACK_FILTER_PROTOCOL_CONNECTION:
         handshake_info(wsi);
         lwsl_notice("filter\n");

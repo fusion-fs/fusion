@@ -11,11 +11,11 @@ extern "C" {
 
     static struct libwebsocket_context *context;
     using namespace std;
-
-    static set<int> client_vec;
+    typedef pair<int, libwebsocket *> socket_pair;
+    static set<socket_pair> client_vec;
     static volatile int force_exit = 0;
 
-    static int add_Client(struct libwebsocket *wsi)
+    static int add_client(struct libwebsocket *wsi)
     {
         int fd = libwebsocket_get_socket_fd(wsi);
         char peer_name[128], ip[30];
@@ -24,19 +24,41 @@ extern "C" {
                                          peer_name, sizeof peer_name, ip, sizeof ip);
         fprintf(stderr, "add %s %s\n", peer_name, ip);
 
-        client_vec.insert(fd);
+        client_vec.insert(make_pair(fd, wsi));
     }
 
-    static int remove_Client(struct libwebsocket *wsi)
+    static int remove_client(struct libwebsocket *wsi)
     {
         int fd = libwebsocket_get_socket_fd(wsi);
-        char peer_name[128], ip[30];
-        libwebsockets_get_peer_addresses(context, wsi,
-                                         fd,
-                                         peer_name, sizeof peer_name, ip, sizeof ip);
-        fprintf(stderr, "remove %s %s\n", peer_name, ip);
+        set<socket_pair>::iterator it;
+        for (it = client_vec.begin(); it != client_vec.end(); it ++) {
+            if (it->first == fd){
+                char peer_name[128], ip[30];
+                libwebsockets_get_peer_addresses(context, wsi,
+                                                 fd,
+                                                 peer_name, sizeof peer_name, ip, sizeof ip);
+                fprintf(stderr, "remove %s %s\n", peer_name, ip);
+                client_vec.erase(it);
+                break;
+            }
+        }
 
-        client_vec.erase(client_vec.find(fd));
+    }
+
+    static struct libwebsocket *get_client(int fd)
+    {
+        set<socket_pair>::iterator it;
+        for (it = client_vec.begin(); it != client_vec.end(); it ++) {
+            if (it->first == fd){
+                char peer_name[128], ip[30];
+                libwebsockets_get_peer_addresses(context, it->second,
+                                                 fd,
+                                                 peer_name, sizeof peer_name, ip, sizeof ip);
+                fprintf(stderr, "found %s %s\n", peer_name, ip);
+                return it->second;
+            }
+        }
+        return NULL;
     }
 
     static int
@@ -78,7 +100,7 @@ extern "C" {
 
         case LWS_CALLBACK_ESTABLISHED:
             lwsl_notice("established\n");
-            add_Client(wsi);
+            add_client(wsi);
             break;
 
         case LWS_CALLBACK_SERVER_WRITEABLE:
@@ -86,7 +108,7 @@ extern "C" {
             break;
         case LWS_CALLBACK_CLOSED:
             fprintf(stderr, "LWS_CALLBACK_CLOSED\n");
-            remove_Client(wsi);
+            remove_client(wsi);
             break;
 
         case LWS_CALLBACK_RECEIVE:
@@ -198,5 +220,31 @@ extern "C" {
 
         return 0;
     }
+
+    int write_to_client(int fd, unsigned char *data, ulong len)
+    {
+        struct libwebsocket *wsi = get_client(fd);
+        if (!wsi || !data || !len) {
+            return -1;
+        }
+        return libwebsocket_write(wsi, data , len, LWS_WRITE_BINARY);
+    }
+
+    int read_from_client(int fd, unsigned char *req, ulong req_len, 
+                         unsigned char *resp, ulong resp_len)
+    {
+        struct libwebsocket *wsi = get_client(fd);
+        if (!wsi || !req || !resp || !req_len || !resp_len) {
+            return -1;
+        }
+        
+        int n = libwebsocket_write(wsi, req , req_len, LWS_WRITE_BINARY);
+        if (n < 0 ){
+            return n;
+        }
+        n = libwebsocket_read(context, wsi, resp, resp_len);
+        return n;
+    }
+
 }
 #endif

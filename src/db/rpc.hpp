@@ -3,7 +3,7 @@ enum xio_states {
     XIO_ESTABLISHED,
     XIO_SEND_COMMAND,
     XIO_HANDLE_MESSAGE,
-    XIO_PAYLOAD_SUM,
+    XIO_COMMAND_DONE,
 };
 
 struct per_session_data_xio {

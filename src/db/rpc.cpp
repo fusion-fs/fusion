@@ -5,8 +5,9 @@
 #include <syslog.h>
 #include <signal.h>
 #include <libwebsockets.h>
-#include "rpc.hpp"
+#include <errno.h>
 #include <set>
+#include "rpc.hpp"
 #ifdef __cplusplus
 extern "C" {
     static struct libwebsocket_context *context;
@@ -233,6 +234,10 @@ extern "C" {
         if (!wsi || !data || !len) {
             return -1;
         }
+        struct per_session_data_xio *xio; // = (struct per_session_data_xio *)(wsi->user_space);         
+        if (xio->state != XIO_COMMAND_DONE || xio->state != XIO_ESTABLISHED){
+            return -EBUSY;
+        }
         return libwebsocket_write(wsi, data , len, LWS_WRITE_BINARY);
     }
 
@@ -242,6 +247,10 @@ extern "C" {
         struct libwebsocket *wsi = get_client(fd);
         if (!wsi || !req || !resp || !req_len || !resp_len) {
             return -1;
+        }
+        struct per_session_data_xio *xio; // = (struct per_session_data_xio *)(wsi->user_space);         
+        if (xio->state != XIO_COMMAND_DONE || xio->state != XIO_ESTABLISHED){
+            return -EBUSY;
         }
         
         int n = libwebsocket_write(wsi, req , req_len, LWS_WRITE_BINARY);

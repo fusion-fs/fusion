@@ -18,12 +18,24 @@ extern "C" {
     static int add_Client(struct libwebsocket *wsi)
     {
         int fd = libwebsocket_get_socket_fd(wsi);
+        char peer_name[128], ip[30];
+        libwebsockets_get_peer_addresses(context, wsi,
+                                         fd,
+                                         peer_name, sizeof peer_name, ip, sizeof ip);
+        fprintf(stderr, "add %s %s\n", peer_name, ip);
+
         client_vec.insert(fd);
     }
 
     static int remove_Client(struct libwebsocket *wsi)
     {
         int fd = libwebsocket_get_socket_fd(wsi);
+        char peer_name[128], ip[30];
+        libwebsockets_get_peer_addresses(context, wsi,
+                                         fd,
+                                         peer_name, sizeof peer_name, ip, sizeof ip);
+        fprintf(stderr, "remove %s %s\n", peer_name, ip);
+
         client_vec.erase(client_vec.find(fd));
     }
 
@@ -66,19 +78,20 @@ extern "C" {
 
         case LWS_CALLBACK_ESTABLISHED:
             lwsl_notice("established\n");
+            add_Client(wsi);
             break;
 
         case LWS_CALLBACK_SERVER_WRITEABLE:
             lwsl_notice("writable\n");
             break;
+        case LWS_CALLBACK_CLOSED:
+            fprintf(stderr, "LWS_CALLBACK_CLOSED\n");
+            remove_Client(wsi);
+            break;
 
         case LWS_CALLBACK_RECEIVE:
         {
-            char peer_name[128], ip[30];
-            libwebsockets_get_peer_addresses(context, wsi,
-                                             libwebsocket_get_socket_fd(wsi),
-                                             peer_name, sizeof peer_name, ip, sizeof ip);
-            fprintf(stderr, "receive from %s %s\n", peer_name, ip);
+            fprintf(stderr, "receive:");
             fprintf(stderr, "%s\n", (char *)in);
             {
                 unsigned char buffer[4096];
@@ -87,7 +100,6 @@ extern "C" {
                              "Status: OK\x0d\x0a");
 
                 int n = libwebsocket_write(wsi, buffer, p - buffer, LWS_WRITE_BINARY);
-                fprintf(stderr, "wrote %d\n", n);
             }
 
         }

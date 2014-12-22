@@ -44,7 +44,7 @@ xio_protocol_callback(struct libwebsocket_context *context,
         //FIXME: retry if connection lost, but for now just exit
         force_exit = 1;
 		break;
-	case LWS_CALLBACK_RECEIVE:
+	case LWS_CALLBACK_CLIENT_RECEIVE:
         lwsl_notice("receive\n");
 		fprintf(stderr, "%s\n", (char *)in);
 		break;

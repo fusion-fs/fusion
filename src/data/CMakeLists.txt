@@ -1,8 +1,11 @@
-set(CPPSRCS server_main.cpp data_server.cpp)
+#set(CPPSRCS server_main.cpp data_server.cpp)
+#include_directories(${PROJECT_SOURCE_DIR}/src/protocol)
+set(CSRCS data_server.c)
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
-include_directories(${PROJECT_SOURCE_DIR}/src/protocol)
-add_executable(dataserver ${CPPSRCS})
 
-target_link_libraries(dataserver io boost_system ${PROTOBUF_LIBRARIES})
+add_executable(dataserver ${CPPSRCS} ${CSRCS})
+
+#target_link_libraries(dataserver io boost_system ${PROTOBUF_LIBRARIES})
+target_link_libraries(dataserver websockets)
 
 INSTALL(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/dataserver DESTINATION bin)

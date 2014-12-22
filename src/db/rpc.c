@@ -20,16 +20,15 @@ xio_protocol_callback(struct libwebsocket_context *context,
     switch (reason) {
 
     case LWS_CALLBACK_ESTABLISHED:
-        printf("New Connection\n");
+        lwsl_notice("established\n");
         break;
 
     case LWS_CALLBACK_SERVER_WRITEABLE:
+        lwsl_notice("writable\n");
         break;
 
     case LWS_CALLBACK_RECEIVE:
-        break;
-
-    case LWS_CALLBACK_FILTER_PROTOCOL_CONNECTION:
+        lwsl_notice("receive\n");
         break;
 
     default:
@@ -39,7 +38,32 @@ xio_protocol_callback(struct libwebsocket_context *context,
     return 0;
 }
 
+static int callback_http(struct libwebsocket_context *context, struct libwebsocket *wsi, enum libwebsocket_callback_reasons reason, void *user, void *in, size_t len)
+{
+    switch (reason) {
+    case LWS_CALLBACK_HTTP: 
+        lwsl_notice("http.\n");
+        break;
+ 
+    case LWS_CALLBACK_HTTP_FILE_COMPLETION:
+        lwsl_info("LWS_CALLBACK_HTTP_FILE_COMPLETION seen\n");
+        break;
+    case LWS_CALLBACK_HTTP_WRITEABLE:
+        lwsl_info("LWS_CALLBACK_HTTP_WRITABLE\n");
+        break;
+ 
+    default:
+        break;
+    }
+    return 0;
+}
+
 static struct libwebsocket_protocols protocols[] = {
+    {
+        "http-only",    /* name */
+        callback_http,  /* callback */
+        0               /* per_session_data_size */
+    },
     {
         "xio-protocol",
         xio_protocol_callback,

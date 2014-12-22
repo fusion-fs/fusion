@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <getopt.h>
 #include <stdarg.h>
-#include "rpc.h"
+#include "rpc.hpp"
 #include "cppwrapper.hpp"
 
 struct fuse_operations fusionfs_op;

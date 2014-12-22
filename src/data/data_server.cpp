@@ -11,13 +11,15 @@
 #include <boost/shared_ptr.hpp>
 #include <boost/cstdint.hpp>
 #include <boost/enable_shared_from_this.hpp>
+#include <google/protobuf/io/coded_stream.h>
+#include <google/protobuf/io/zero_copy_stream_impl.h>
 
 using namespace std;
 namespace asio = boost::asio;
 using asio::ip::tcp;
 using boost::uint8_t;
 using namespace io;
-
+using namespace google;
 
 class Session : public boost::enable_shared_from_this<Session>
 {
@@ -27,80 +29,91 @@ public:
     typedef boost::shared_ptr<io::Response> ResponsePointer;
 
     static Pointer create(asio::io_service& io_service)
-    {
-        return Pointer(new Session(io_service));
-    }
+        {
+            return Pointer(new Session(io_service));
+        }
 
     tcp::socket& get_socket()
-    {
-        return m_socket;
-    }
+        {
+            return m_socket;
+        }
 
     void start()
-    {
-        start_read_header();
-    }
+        {
+            read_header();
+        }
 
 private:
     tcp::socket m_socket;
-    vector<uint8_t> m_readbuf;
+    asio::streambuf m_readbuf;
     boost::shared_ptr<io::Request> m_request;
+    boost::shared_ptr<io::Response> m_resp;
 
     Session(asio::io_service& io_service)
         : m_socket(io_service), m_request(new io::Request())
-    {
-    }
+        {
+        }
     
     void handle_read_header(const boost::system::error_code& error)
-    {
-        if (!error) {
-            unsigned msg_len;
-            start_read_body(msg_len);
+        {
+            if (!error) {
+                istream stream(&m_readbuf);
+                protobuf::io::IstreamInputStream in_stream(&stream);
+                protobuf::io::CodedInputStream coded_in_stream(&in_stream);
+                Request msg;
+                msg.MergePartialFromCodedStream(&coded_in_stream);
+                if (msg.has_io_read()) {
+                    Request_IORead read /*= msg*/;
+                    string key = read.key();
+                    unsigned msg_len;
+                    read_body(msg_len);
+                }
+            }
         }
-    }
 
     void handle_read_body(const boost::system::error_code& error)
-    {
-        if (!error) {
-            handle_request();
-            start_read_header();
+        {
+            if (!error) {
+                handle_request();
+                read_header();
+            }
         }
-    }
 
     void handle_request()
-    {
-        RequestPointer req;
-        ResponsePointer resp = prepare_response(req);
+        {
+            RequestPointer req;
+            ResponsePointer resp = prepare_response(req);
         
-        vector<uint8_t> writebuf;
-        asio::write(m_socket, asio::buffer(writebuf));
-    }
+            vector<uint8_t> writebuf;
+            asio::write(m_socket, asio::buffer(writebuf));
+        }
 
-    void start_read_header()
-    {
-        asio::async_read(m_socket, asio::buffer(m_readbuf),
-                boost::bind(&Session::handle_read_header, shared_from_this(),
-                    asio::placeholders::error));
-    }
+    void read_header()
+        {
+            boost::asio::streambuf::mutable_buffers_type mutableBuffer =
+                m_readbuf.prepare(4096);
 
-    void start_read_body(unsigned msg_len)
-    {
-        // m_readbuf already contains the header in its first HEADER_SIZE
-        // bytes. Expand it to fit in the body as well, and start async
-        // read into the body.
-        //
-        m_readbuf.resize(msg_len);
-        asio::mutable_buffers_1 buf = asio::buffer(m_readbuf, msg_len);
-        asio::async_read(m_socket, buf,
-                boost::bind(&Session::handle_read_body, shared_from_this(),
-                    asio::placeholders::error));
-    }
+            asio::async_read(m_socket, asio::buffer(mutableBuffer),
+                             boost::bind(&Session::handle_read_header, 
+                                         shared_from_this(),
+                                         asio::placeholders::error));
+        }
+
+    void read_body(unsigned msg_len)
+        {
+            boost::asio::streambuf::mutable_buffers_type mutableBuffer =
+                m_readbuf.prepare(msg_len);
+
+            asio::async_read(m_socket, asio::buffer(mutableBuffer),
+                             boost::bind(&Session::handle_read_body, shared_from_this(),
+                                         asio::placeholders::error));
+        }
 
     ResponsePointer prepare_response(RequestPointer req)
-    {
-        string value;
-        switch (req->type())
         {
+            string value;
+            switch (req->type())
+            {
             case io::Request::READ:
             {
                 break; 
@@ -113,63 +126,51 @@ private:
             }
             default:
                 break;
+            }
+            ResponsePointer resp(new io::Response);
+            //resp->set_value(value);
+            return resp;
         }
-        ResponsePointer resp(new io::Response);
-        //resp->set_value(value);
-        return resp;
-    }
 };
 
 
-struct DataServer::DataServerImpl
+class DataServer::Server
 {
     asio::io_service& io_service_;
     tcp::acceptor acceptor;
-
-    DataServerImpl(asio::io_service& io_service, unsigned port)
+public:
+    Server(asio::io_service& io_service, unsigned port)
         : io_service_(io_service), 
           acceptor(io_service, tcp::endpoint(tcp::v4(), port))
 
-    {
-        start_accept();
-    }
-
-    void start_accept()
-    {
-        // Create a new connection to handle a client. Passing a reference
-        // to db to each connection poses no problem since the server is 
-        // single-threaded.
-        //
-        Session::Pointer new_connection = 
-            Session::create(io_service_);
-
-        // Asynchronously wait to accept a new client
-        //
-        acceptor.async_accept(new_connection->get_socket(),
-            boost::bind(&DataServerImpl::handle_accept, this, new_connection,
-                asio::placeholders::error));
-    }
-
-    void handle_accept(Session::Pointer connection,
-            const boost::system::error_code& error)
-    {
-        // A new client has connected
-        //
-        if (!error) {
-            // Start the connection
-            //
-            connection->start();
-
-            // Accept another client
-            //
+        {
             start_accept();
         }
-    }
+
+    void start_accept()
+        {
+            Session::Pointer new_connection = 
+                Session::create(io_service_);
+
+            acceptor.async_accept(new_connection->get_socket(),
+                                  boost::bind(&Server::handle_accept, 
+                                              this, new_connection,
+                                              asio::placeholders::error));
+        }
+
+    void handle_accept(Session::Pointer connection,
+                       const boost::system::error_code& error)
+        {
+            if (!error) {
+                connection->start();
+                start_accept();
+            }
+        }
 };
 
 
 DataServer::DataServer(asio::io_service& io_service, unsigned port)
-    : d(new DataServerImpl(io_service, port))
+    : server(new Server(io_service, port))
 {
 }
 

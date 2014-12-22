@@ -14,8 +14,8 @@ private:
     DataServer();
     void start_accept();
 
-    struct DataServerImpl;
-    boost::shared_ptr<DataServerImpl> d;
+    class Server;
+    boost::shared_ptr<Server> server;
 };
 
 #endif /* DATA_SERVER_H */

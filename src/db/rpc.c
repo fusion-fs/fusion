@@ -53,7 +53,7 @@ static void sighandler(int sig)
     force_exit = 1;
 }
 
-int start_server()
+int start_server(ulong port)
 {
     int n = 0;
     struct libwebsocket_context *context;
@@ -65,7 +65,7 @@ int start_server()
     int debug_level = 7;
 
     memset(&info, 0, sizeof info);
-    info.port = 9999;
+    info.port = port;
 
 
     signal(SIGINT, sighandler);

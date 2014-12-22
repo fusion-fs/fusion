@@ -2,14 +2,57 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-
 #include <syslog.h>
-
 #include <signal.h>
-
 #include <libwebsockets.h>
 
-int force_exit = 0;
+static volatile int force_exit = 0;
+static int
+xio_protocol_callback(struct libwebsocket_context *context,
+                      struct libwebsocket *wsi,
+                      enum libwebsocket_callback_reasons reason,
+                      void *user, void *in, size_t len);
+
+static int callback_http(struct libwebsocket_context *context, struct libwebsocket *wsi, enum libwebsocket_callback_reasons reason, void *user, void *in, size_t len);
+
+static struct libwebsocket_protocols protocols[] = {
+    {
+        "http-only",    /* name */
+        callback_http,  /* callback */
+        0               /* per_session_data_size */
+    },
+    {
+        "xio-protocol",
+        xio_protocol_callback,
+        4096,
+    },
+    { NULL, NULL, 0} /* terminator */
+};
+
+static void handshake_info(struct libwebsocket *wsi)
+{
+	int n = 0;
+	char buf[256];
+	const unsigned char *c;
+
+	do {
+		c = lws_token_to_string(n);
+		if (!c) {
+			n++;
+			continue;
+		}
+
+		if (!lws_hdr_total_length(wsi, n)) {
+			n++;
+			continue;
+		}
+
+		lws_hdr_copy(wsi, buf, sizeof buf, n);
+
+		fprintf(stderr, "    %s = %s\n", (char *)c, buf);
+		n++;
+	} while (c);
+}
 
 static int
 xio_protocol_callback(struct libwebsocket_context *context,
@@ -17,18 +60,46 @@ xio_protocol_callback(struct libwebsocket_context *context,
                       enum libwebsocket_callback_reasons reason,
                       void *user, void *in, size_t len)
 {
+    char client_name[128];
+    char client_ip[128];
+ 
     switch (reason) {
 
     case LWS_CALLBACK_ESTABLISHED:
         lwsl_notice("established\n");
+        libwebsocket_callback_on_writable_all_protocol(&protocols[1]);
+        break;
+	case LWS_CALLBACK_CLIENT_ESTABLISHED:
+        lwsl_notice("client established\n");
+        break;
+	case LWS_CALLBACK_CLIENT_WRITEABLE:
+        lwsl_notice("client writable\n");
         break;
 
     case LWS_CALLBACK_SERVER_WRITEABLE:
         lwsl_notice("writable\n");
-        break;
+        {
+            unsigned char buffer[4096];
+            unsigned char *p = buffer;
 
+            p += sprintf((char *)p,
+                         "COMMAND:read\n"
+                         "FILE:abc\n"
+                         "START:0\n",
+                         "SIZE:100\n");
+
+            int n = libwebsocket_write(wsi, buffer, p - buffer, LWS_WRITE_TEXT);
+            fprintf(stderr, "wrote %d\n", n);
+        }
+
+        break;
+	case LWS_CALLBACK_CLIENT_RECEIVE:
     case LWS_CALLBACK_RECEIVE:
         lwsl_notice("receive\n");
+        break;
+	case LWS_CALLBACK_FILTER_PROTOCOL_CONNECTION:
+        handshake_info(wsi);
+        lwsl_notice("filter\n");
         break;
 
     default:
@@ -58,19 +129,6 @@ static int callback_http(struct libwebsocket_context *context, struct libwebsock
     return 0;
 }
 
-static struct libwebsocket_protocols protocols[] = {
-    {
-        "http-only",    /* name */
-        callback_http,  /* callback */
-        0               /* per_session_data_size */
-    },
-    {
-        "xio-protocol",
-        xio_protocol_callback,
-        128,
-    },
-    { NULL, NULL, 0} /* terminator */
-};
 
 static void sighandler(int sig)
 {
@@ -116,7 +174,7 @@ int start_rpc_server(ulong port)
         lwsl_err("libwebsocket init failed\n");
         return -1;
     }
-
+    libwebsocket_callback_on_writable_all_protocol(&protocols[1]);
     n = 0;
     while (n >= 0 && !force_exit) {
 	

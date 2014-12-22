@@ -5,24 +5,10 @@
 #include <syslog.h>
 #include <signal.h>
 #include <libwebsockets.h>
+#include "rpc.hpp"
 #include <set>
 #ifdef __cplusplus
 extern "C" {
-    enum xio_states {
-        XIO_INIT,
-        XIO_ESTABLISHED,
-        XIO_SEND_COMMAND,
-        XIO_HANDLE_MESSAGE,
-        XIO_PAYLOAD_SUM,
-    };
-
-    struct per_session_data_xio {
-        int packets_left;
-        int total_message;
-        unsigned long sum;
-        enum xio_states state;
-    };
-
     static struct libwebsocket_context *context;
     using namespace std;
     typedef pair<int, libwebsocket *> socket_pair;
@@ -92,7 +78,7 @@ extern "C" {
         {
             "xio-protocol",
             xio_protocol_callback,
-            4096,
+            sizeof(struct per_session_data_xio),
         },
         { NULL, NULL, 0} /* terminator */
     };

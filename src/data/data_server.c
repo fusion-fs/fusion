@@ -8,7 +8,7 @@
 #include <syslog.h>
 
 #include <libwebsockets.h>
-
+#include <rpc.hpp>
 static volatile int force_exit = 0;
 
 static int

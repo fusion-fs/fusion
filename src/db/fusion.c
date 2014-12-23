@@ -4,11 +4,21 @@
 #include <stdio.h>
 #include <getopt.h>
 #include <stdarg.h>
+#include <pthread.h>
 #include "rpc.hpp"
 #include "cppwrapper.hpp"
 
 struct fuse_operations fusionfs_op;
 #define NS "test"
+
+void *rpc(void *arg)
+{
+    ulong port = *(ulong *)arg;
+    int ret = start_rpc_server(port);
+    fprintf(stderr, "rpc server returned %d\n", ret);
+    return NULL;
+}
+
 int main(int argc, char *argv[]) {
     int fuse_stat;
     char *ns = NULL;
@@ -89,6 +99,7 @@ int main(int argc, char *argv[]) {
 
         }
     }
+    printf("rpc port %lu mount %s\n", port, mount);
     printf("mounting file system...\n");
             
     set_Namespace(ns?ns:NS);
@@ -97,18 +108,23 @@ int main(int argc, char *argv[]) {
         "fuse-fusionfs", mount,
         "-o", "allow_other",
         "-o", "nonempty",
+        "-o", "debug",
         NULL
     };
-    int fuse_argc = 6;
-
+    int fuse_argc = 8;
+    pthread_t rpc_thread;
+    if (pthread_create(&rpc_thread, NULL, rpc, &port)){
+        fprintf(stderr, "failed to create rpc thread\n");
+        return 1;
+    }
+    pthread_setname_np(rpc_thread, "rpc_t");
     fuse_stat = fuse_main(fuse_argc, fuse_argv, &fusionfs_op, NULL);
     fprintf(stderr, "fuse_main returned %d\n", fuse_stat);
-    int ret = start_rpc_server(port);
-    if (ret){
-        fprintf(stderr, "rpc server returned %d\n", ret);
+    if (pthread_join(rpc_thread,NULL)){
+        fprintf(stderr, "failed to join rpc thread\n");
+        return 1;
     }
-
     free(ns);
     //free(mount);
-    return fuse_stat | ret;
+    return fuse_stat;
 }

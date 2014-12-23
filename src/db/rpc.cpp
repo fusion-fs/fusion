@@ -243,7 +243,7 @@ extern "C" {
             return -1;
         }
         struct per_session_data_xio *xio = (struct per_session_data_xio *)(pair->second);         
-        if (xio->state != XIO_COMMAND_DONE || xio->state != XIO_ESTABLISHED){
+        if (xio->state != XIO_COMMAND_DONE && xio->state != XIO_ESTABLISHED){
             return -EBUSY;
         }
         return libwebsocket_write(wsi, data , len, LWS_WRITE_BINARY);
@@ -259,7 +259,7 @@ extern "C" {
             return -1;
         }
         struct per_session_data_xio *xio = (struct per_session_data_xio *)(pair->second);         
-        if (xio->state != XIO_COMMAND_DONE || xio->state != XIO_ESTABLISHED){
+        if (xio->state != XIO_COMMAND_DONE && xio->state != XIO_ESTABLISHED){
             return -EBUSY;
         }
         

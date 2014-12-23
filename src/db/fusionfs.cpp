@@ -237,7 +237,8 @@ int FusionFS::Write(const char *path, const char *buf, size_t size, off_t offset
         memcpy((void *)(p + n), (void *)buf, size);
     }
     write_to_client(fd, (unsigned char *)buffer, n + size);
-    return 0;
+    //FIXME: check return size
+    return size;
 }
 
 int FusionFS::Statfs(const char *path, struct statvfs *statInfo) {

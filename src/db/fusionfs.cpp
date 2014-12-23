@@ -1,4 +1,5 @@
 #include "fusionfs.hpp"
+#include "rpc.hpp"
 #include <boost/lexical_cast.hpp>
 
 using namespace boost;
@@ -222,6 +223,20 @@ int FusionFS::Read(const char *path, char *buf, size_t size, off_t offset, struc
 
 int FusionFS::Write(const char *path, const char *buf, size_t size, off_t offset, struct fuse_file_info *fileInfo) {
     fprintf(stderr,"write(path=%s, size=%d, offset=%d)\n", path, (int)size, (int)offset);
+    int fd = find_client(path);
+    if (fd < 0) {
+        return -ENOENT;
+    }
+
+    char buffer[4096], *p = buffer;
+    int n = sprintf(buffer,"Key: %s\x0d\x0a"
+                     "Offset: %lu\x0d\x0a"
+                     "Size: %lu\x0d\x0a", 
+                     path, (ulong)offset, (ulong)size);
+    if (n + size < sizeof(buffer)){
+        memcpy((void *)(p + n), (void *)buf, size);
+    }
+    write_to_client(fd, (unsigned char *)buffer, n + size);
     return 0;
 }
 

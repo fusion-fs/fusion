@@ -229,6 +229,12 @@ extern "C" {
         return 0;
     }
 
+    int find_client(const char *path) 
+    {
+        set<socket_pair>::iterator it = client_vec.begin();
+        return it->first;
+    }
+
     int write_to_client(int fd, unsigned char *data, ulong len)
     {
         const wsi_pair *pair = get_client(fd);

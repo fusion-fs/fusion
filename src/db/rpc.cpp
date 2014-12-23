@@ -12,11 +12,12 @@
 extern "C" {
     static struct libwebsocket_context *context;
     using namespace std;
-    typedef pair<int, libwebsocket *> socket_pair;
+    typedef pair<libwebsocket *, void *> wsi_pair;
+    typedef pair<int, wsi_pair> socket_pair;
     static set<socket_pair> client_vec;
     static volatile int force_exit = 0;
 
-    static int add_client(struct libwebsocket *wsi)
+    static int add_client(struct libwebsocket *wsi, void *user)
     {
         int fd = libwebsocket_get_socket_fd(wsi);
         char peer_name[128], ip[30];
@@ -25,7 +26,7 @@ extern "C" {
                                          peer_name, sizeof peer_name, ip, sizeof ip);
         fprintf(stderr, "add %s %s\n", peer_name, ip);
 
-        client_vec.insert(make_pair(fd, wsi));
+        client_vec.insert(make_pair(fd, make_pair(wsi, user)));
     }
 
     static int remove_client(struct libwebsocket *wsi)
@@ -46,17 +47,17 @@ extern "C" {
 
     }
 
-    static struct libwebsocket *get_client(int fd)
+    static const wsi_pair *get_client(int fd)
     {
         set<socket_pair>::iterator it;
         for (it = client_vec.begin(); it != client_vec.end(); it ++) {
             if (it->first == fd){
                 char peer_name[128], ip[30];
-                libwebsockets_get_peer_addresses(context, it->second,
+                libwebsockets_get_peer_addresses(context, it->second.first,
                                                  fd,
                                                  peer_name, sizeof peer_name, ip, sizeof ip);
                 fprintf(stderr, "found %s %s\n", peer_name, ip);
-                return it->second;
+                return &it->second;
             }
         }
         return NULL;
@@ -101,7 +102,7 @@ extern "C" {
         case LWS_CALLBACK_ESTABLISHED:
             lwsl_notice("established\n");
             xio->state = XIO_ESTABLISHED;
-            add_client(wsi);
+            add_client(wsi, user);
             break;
 
 
@@ -230,11 +231,12 @@ extern "C" {
 
     int write_to_client(int fd, unsigned char *data, ulong len)
     {
-        struct libwebsocket *wsi = get_client(fd);
+        const wsi_pair *pair = get_client(fd);
+        struct libwebsocket *wsi = pair->first;
         if (!wsi || !data || !len) {
             return -1;
         }
-        struct per_session_data_xio *xio; // = (struct per_session_data_xio *)(wsi->user_space);         
+        struct per_session_data_xio *xio = (struct per_session_data_xio *)(pair->second);         
         if (xio->state != XIO_COMMAND_DONE || xio->state != XIO_ESTABLISHED){
             return -EBUSY;
         }
@@ -244,11 +246,13 @@ extern "C" {
     int read_from_client(int fd, unsigned char *req, ulong req_len, 
                          unsigned char *resp, ulong resp_len)
     {
-        struct libwebsocket *wsi = get_client(fd);
+        const wsi_pair *pair = get_client(fd);
+        struct libwebsocket *wsi = pair->first;
+
         if (!wsi || !req || !resp || !req_len || !resp_len) {
             return -1;
         }
-        struct per_session_data_xio *xio; // = (struct per_session_data_xio *)(wsi->user_space);         
+        struct per_session_data_xio *xio = (struct per_session_data_xio *)(pair->second);         
         if (xio->state != XIO_COMMAND_DONE || xio->state != XIO_ESTABLISHED){
             return -EBUSY;
         }

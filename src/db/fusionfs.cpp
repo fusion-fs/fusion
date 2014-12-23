@@ -237,19 +237,23 @@ int FusionFS::Write(const char *path, const char *buf, size_t size, off_t offset
         memcpy((void *)(p + n), (void *)buf, size);
     }
     int ret = write_to_client(fd, (unsigned char *)buffer, n + size);
+    if (ret < n) {
+        fprintf(stderr, "failed to write, ret %d\n", ret);
+        return -EIO;
+    }
+    ret -= n;
     struct stat statbuf;
     if (!Getattr(path, &statbuf)){
         int inode = Path2Inode(path);
         statbuf.st_ino = inode;
 
         statbuf.st_mtime = statbuf.st_ctime = statbuf.st_atime = time(NULL);
-        if (offset + size > statbuf.st_size){
-            statbuf.st_size  = offset + size;
+        if (offset + ret > statbuf.st_size){
+            statbuf.st_size  = offset + ret;
         }
         SetAttr(statbuf);
     }
-    //FIXME: check return size
-    return size;
+    return ret;
 }
 
 int FusionFS::Statfs(const char *path, struct statvfs *statInfo) {

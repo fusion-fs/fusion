@@ -3,7 +3,6 @@
 #include <unistd.h>
 #include <string.h>
 #include <syslog.h>
-#include <signal.h>
 #include <libwebsockets.h>
 #include <errno.h>
 #include <set>
@@ -15,7 +14,6 @@ extern "C" {
     typedef pair<libwebsocket *, void *> wsi_pair;
     typedef pair<int, wsi_pair> socket_pair;
     static set<socket_pair> client_vec;
-    static volatile int force_exit = 0;
 
     static int add_client(struct libwebsocket *wsi, void *user)
     {
@@ -167,11 +165,6 @@ extern "C" {
     }
 
 
-    static void sighandler(int sig)
-    {
-        force_exit = 1;
-    }
-
     int start_rpc_server(ulong port)
     {
         int n = 0;
@@ -186,8 +179,6 @@ extern "C" {
         memset(&info, 0, sizeof info);
         info.port = port;
 
-
-        signal(SIGINT, sighandler);
 
         /* we will only try to log things according to our debug_level */
         setlogmask(LOG_UPTO (LOG_DEBUG));
@@ -213,8 +204,7 @@ extern "C" {
         }
         libwebsocket_callback_on_writable_all_protocol(&protocols[1]);
         n = 0;
-        while (n >= 0 && !force_exit) {
-	
+        while (n >= 0 && !force_exit) {	
             n = libwebsocket_service(context, 50);
 		
         };

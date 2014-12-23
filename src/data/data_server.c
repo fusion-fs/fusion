@@ -9,7 +9,7 @@
 
 #include <libwebsockets.h>
 #include <rpc.hpp>
-static volatile int force_exit = 0;
+volatile int force_exit = 0;
 
 static int
 xio_protocol_callback(struct libwebsocket_context *context,

@@ -5,25 +5,51 @@
 #include <getopt.h>
 #include <stdarg.h>
 #include <pthread.h>
+#include <signal.h>
+
 #include "rpc.hpp"
 #include "cppwrapper.hpp"
 
 struct fuse_operations fusionfs_op;
+volatile int force_exit = 0;
+char *ns = NULL;
+char *mount = "/tmp/test";
+ulong port = 9999;
+
 #define NS "test"
 
 void *rpc(void *arg)
 {
-    ulong port = *(ulong *)arg;
     int ret = start_rpc_server(port);
     fprintf(stderr, "rpc server returned %d\n", ret);
+    pthread_exit(NULL);
     return NULL;
 }
 
-int main(int argc, char *argv[]) {
-    int fuse_stat;
-    char *ns = NULL;
-    char *mount = "/tmp/test";
+void *fuse(void *arg)
+{
+    char *fuse_argv[] = {
+        "fuse-fusionfs", mount,
+        "-o", "allow_other",
+        "-o", "nonempty",
+        NULL
+    };
+    int fuse_argc = 7;
+    int fuse_stat = fuse_main(fuse_argc, fuse_argv, &fusionfs_op, NULL);
+    fprintf(stderr, "fuse_main returned %d\n", fuse_stat);
+    return NULL;
+}
 
+static void sighandler(int sig)
+{
+    force_exit = 1;
+}
+
+int main(int argc, char *argv[]) {
+
+
+    signal(SIGINT, sighandler);
+    
     fusionfs_op.create = cppwrap_create;
     fusionfs_op.getattr = cppwrap_getattr;
     fusionfs_op.readlink = cppwrap_readlink;
@@ -58,7 +84,7 @@ int main(int argc, char *argv[]) {
     fusionfs_op.init = cppwrap_init;
 
     int c;
-    ulong port = 9999;
+
     while (1)
     {
         static struct option long_options[] = {
@@ -104,27 +130,30 @@ int main(int argc, char *argv[]) {
             
     set_Namespace(ns?ns:NS);
     
-    char *fuse_argv[] = {
-        "fuse-fusionfs", mount,
-        "-o", "allow_other",
-        "-o", "nonempty",
-        "-o", "debug",
-        NULL
-    };
-    int fuse_argc = 8;
     pthread_t rpc_thread;
-    if (pthread_create(&rpc_thread, NULL, rpc, &port)){
+    if (pthread_create(&rpc_thread, NULL, rpc, NULL)){
         fprintf(stderr, "failed to create rpc thread\n");
         return 1;
     }
-    pthread_setname_np(rpc_thread, "rpc_t");
-    fuse_stat = fuse_main(fuse_argc, fuse_argv, &fusionfs_op, NULL);
-    fprintf(stderr, "fuse_main returned %d\n", fuse_stat);
-    if (pthread_join(rpc_thread,NULL)){
+    pthread_t fuse_thread;
+    if (pthread_create(&fuse_thread, NULL, fuse, NULL)){
+        force_exit = 1;
+        fprintf(stderr, "failed to create fuse thread\n");
+        return 1;
+    }
+
+    //pthread_setname_np(rpc_thread, "rpc_t");
+    void *p;
+    if (pthread_join(rpc_thread, &p)){
         fprintf(stderr, "failed to join rpc thread\n");
         return 1;
     }
+    if (pthread_join(fuse_thread, &p)){
+        fprintf(stderr, "failed to join fuse thread\n");
+        return 1;
+    }
+
     free(ns);
     //free(mount);
-    return fuse_stat;
+    return 0;
 }

@@ -12,7 +12,7 @@ struct per_session_data_xio {
     unsigned long sum;
     enum xio_states state;
 };
-
+extern volatile int force_exit;
 #ifdef __cplusplus
 extern "C" {
     extern int find_client(const char *path);
